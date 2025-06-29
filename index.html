@@ -1,143 +1,141 @@
-const todoInput = document.getElementById('todo-input');
-const addBtn = document.getElementById('add-btn');
-const todoList = document.getElementById('todo-list');
-
-// 알림 소리 재생 함수
-function playNotificationSound() {
-    try {
-        // Web Audio API를 사용한 간단한 "띠링" 소리 생성
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.setValueAtTime(800, audioContext.currentTime); // 800Hz
-        oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1); // 1초 후 1000Hz
-        
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.3);
-        
-    } catch (error) {
-        console.log('소리 재생 실패:', error);
-        // 대체 방법: 기존 오디오 요소 사용
-        const notificationSound = document.getElementById('notification-sound');
-        if (notificationSound) {
-            notificationSound.currentTime = 0;
-            notificationSound.play().catch(e => console.log('대체 소리 재생 실패:', e));
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To do list - 내가 할 일</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            /* 부드러운 그라데이션 배경 */
+            background: linear-gradient(135deg, #e0e7ff 0%, #f4f6fa 100%);
+            /* 약간의 패턴 효과 */
+            position: relative;
+            overflow-x: hidden;
         }
-    }
-}
-
-// 알림 메시지 표시 함수
-function showNotification(message) {
-    // 기존 알림이 있다면 제거
-    const existingNotification = document.querySelector('.notification');
-    if (existingNotification) {
-        existingNotification.remove();
-    }
-    
-    const notification = document.createElement('div');
-    notification.className = 'notification';
-    notification.textContent = message;
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: #4f8cff;
-        color: white;
-        padding: 15px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 1000;
-        font-size: 16px;
-        font-weight: 500;
-        animation: slideIn 0.3s ease;
-    `;
-    
-    document.body.appendChild(notification);
-    
-    // 3초 후 알림 제거
-    setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.remove();
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: radial-gradient(circle at 20% 20%, #a5b4fc22 0%, transparent 60%),
+                              radial-gradient(circle at 80% 80%, #fca5a522 0%, transparent 60%);
+            z-index: 0;
+        }
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 400px;
+            margin: 60px auto;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 32px 24px;
+        }
+        h1 { text-align: center; color: #333; }
+        .input-row { display: flex; gap: 8px; margin-bottom: 20px; }
+        #todo-input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
+        #add-btn { padding: 10px 18px; background: #4f8cff; color: #fff; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
+        #add-btn:hover { background: #2563eb; }
+        ul { list-style: none; padding: 0; }
+        li { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            padding: 16px 20px; 
+            margin-bottom: 12px;
+            background: #f8fafc;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+            transition: all 0.3s ease;
+        }
+        li:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-color: #cbd5e1;
+        }
+        li:last-child { border-bottom: none; margin-bottom: 0; }
+        .todo-text { 
+            flex: 1; 
+            margin-left: 15px; 
+            font-size: 16px; 
+            color: #374151;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .completed { 
+            text-decoration: line-through; 
+            color: #9ca3af; 
+            opacity: 0.7;
+        }
+        .delete-btn { 
+            background: #fee2e2; 
+            border: none; 
+            color: #dc2626; 
+            font-size: 16px; 
+            cursor: pointer; 
+            margin-left: 15px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        .delete-btn:hover {
+            background: #fecaca;
+            transform: scale(1.1);
+        }
+        /* 체크박스 크기 조정 */
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            transform: scale(1.2);
+        }
+        
+        /* 알림 애니메이션 */
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
             }
-        }, 300);
-    }, 3000);
-}
-
-function addTodo() {
-    const text = todoInput.value.trim();
-    if (!text) return;
-    
-    const li = document.createElement('li');
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    
-    // 반복 알림 타이머 변수
-    let notificationTimer;
-    let isCompleted = false;
-    
-    // 반복 알림 함수
-    function startRepeatingNotification() {
-        if (isCompleted) return; // 완료되었으면 알림 중지
-        
-        showNotification(`${text} 할일을 하십시오`);
-        
-        // 15분 후 다시 알림 (15분 = 900,000밀리초)
-        notificationTimer = setTimeout(startRepeatingNotification, 900000);
-    }
-    
-    checkbox.addEventListener('change', function() {
-        if (checkbox.checked) {
-            todoText.classList.add('completed');
-            isCompleted = true;
-            // 체크하면 알림 타이머 취소
-            if (notificationTimer) {
-                clearTimeout(notificationTimer);
+            to {
+                transform: translateX(0);
+                opacity: 1;
             }
-        } else {
-            todoText.classList.remove('completed');
-            isCompleted = false;
-            // 체크 해제하면 다시 알림 시작
-            startRepeatingNotification();
         }
-    });
-    
-    const todoText = document.createElement('span');
-    todoText.className = 'todo-text';
-    todoText.textContent = text;
-    
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'delete-btn';
-    deleteBtn.innerHTML = '🗑️';
-    deleteBtn.onclick = function() {
-        // 삭제할 때도 알림 타이머 취소
-        isCompleted = true;
-        if (notificationTimer) {
-            clearTimeout(notificationTimer);
+        
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
         }
-        todoList.removeChild(li);
-    };
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>To do list - 내가 할 일</h1>
+        <div class="input-row">
+            <input type="text" id="todo-input" placeholder="할 일을 입력하세요" />
+            <button id="add-btn">추가</button>
+        </div>
+        <ul id="todo-list"></ul>
+    </div>
     
-    li.appendChild(checkbox);
-    li.appendChild(todoText);
-    li.appendChild(deleteBtn);
-    todoList.appendChild(li);
-    todoInput.value = '';
-    todoInput.focus();
+    <!-- 알림 소리용 오디오 -->
+    <audio id="notification-sound" preload="auto" muted>
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT" type="audio/wav">
+    </audio>
     
-    // 15분 후에 첫 번째 알림 시작 (15분 = 900,000밀리초)
-    notificationTimer = setTimeout(startRepeatingNotification, 900000);
-}
-
-addBtn.addEventListener('click', addTodo);
-todoInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') addTodo();
-}); 
+    <!-- 소리 재생을 위한 버튼 (숨김) -->
+    <button id="sound-test" style="display: none;">소리 테스트</button>
+    
+    <script src="todo.js"></script>
+</body>
+</html> 
